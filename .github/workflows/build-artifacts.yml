@@ -1,0 +1,68 @@
+name: Build artifacts
+
+on:
+  push:
+    branches: [ build-test ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: 8
+
+      - uses: burrunan/gradle-cache-action@v1
+        name: Build with Gradle
+        env:
+          TERM: dumb
+          JADX_VERSION: git
+        with:
+          arguments: clean dist copyExe
+
+      - name: Save bundle artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('jadx-{0}', env.JADX_VERSION) }}
+          # Waiting fix for https://github.com/actions/upload-artifact/issues/39 to upload zip file
+          # Upload unpacked files for now
+          path: build/jadx/**/*
+          if-no-files-found: error
+
+      - name: Save exe artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('jadx-gui-{0}-no-jre-win.exe', env.JADX_VERSION) }}
+          path: build/*.exe
+          if-no-files-found: error
+
+  build-win-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: oracle-actions/setup-java@v1 # set latest java version by default
+
+      - uses: gradle/gradle-build-action@v2
+        name: Build with Gradle
+        env:
+          TERM: dumb
+          JADX_VERSION: git
+        with:
+          arguments: clean dist -PbundleJRE=true
+
+      - name: Save exe bundle artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('jadx-gui-{0}-with-jre-win.zip', env.JADX_VERSION) }}
+          path: build/*.zip
+          if-no-files-found: error
